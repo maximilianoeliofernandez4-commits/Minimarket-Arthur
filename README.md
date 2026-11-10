@@ -1,7 +1,7 @@
 # Gestión Minisuper
 
 App web simple para manejar un **minisúper**: ventas, caja, stock, precios, vencimientos,
-gastos y ganancias. No necesita instalación ni servidor: son 3 archivos (`index.html`, `styles.css`, `app.js`).
+gastos y ganancias. No necesita instalación ni servidor: es **un solo archivo**, `index.html`, que podés copiar a cualquier lado.
 
 ## Cómo usarla
 

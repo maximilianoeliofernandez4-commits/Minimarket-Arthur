@@ -1,9 +1,0 @@
-{
-  "name": "Gestión Minisuper",
-  "short_name": "Minisuper",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f5f6fa",
-  "theme_color": "#4f46e5",
-  "icons": []
-}
