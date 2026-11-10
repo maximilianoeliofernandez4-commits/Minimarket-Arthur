@@ -4,19 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#4f46e5">
-  <title>Gestión del Negocio</title>
+  <title>Mi Minisuper</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
-    <h1 id="nombre-negocio">Mi Negocio</h1>
+    <h1 id="nombre-negocio">Mi Minisuper</h1>
     <span id="fecha-hoy" class="muted"></span>
   </header>
 
   <nav class="tabs" id="tabs">
     <button data-tab="resumen" class="active">📊 Resumen</button>
     <button data-tab="venta">🛒 Vender</button>
+    <button data-tab="caja">💵 Caja <span id="tab-caja-estado"></span></button>
     <button data-tab="productos">📦 Stock</button>
     <button data-tab="ventas">🧾 Ventas</button>
     <button data-tab="gastos">💸 Gastos</button>
@@ -43,7 +44,7 @@
         <div class="card"><span>Ganancia bruta</span><strong id="r-bruta">$0</strong><small id="r-margen"></small></div>
         <div class="card"><span>Gastos</span><strong id="r-gastos">$0</strong></div>
         <div class="card destacado"><span>Ganancia neta</span><strong id="r-neta">$0</strong></div>
-        <div class="card"><span>Valor del stock (costo)</span><strong id="r-stock">$0</strong></div>
+        <div class="card"><span>Mercadería en stock (a costo)</span><strong id="r-stock">$0</strong></div>
       </div>
 
       <h3>Ventas por día</h3>
@@ -55,28 +56,38 @@
           <ul id="lista-stock-bajo" class="lista"></ul>
         </div>
         <div>
+          <h3>📅 Vencimientos</h3>
+          <ul id="lista-vencimientos" class="lista"></ul>
+        </div>
+        <div>
           <h3>🏆 Más vendidos</h3>
           <ul id="lista-top" class="lista"></ul>
         </div>
+        <div>
+          <h3>💳 Medios de pago</h3>
+          <ul id="lista-pagos" class="lista"></ul>
+        </div>
       </div>
-      <h3>Medios de pago</h3>
-      <ul id="lista-pagos" class="lista"></ul>
     </section>
 
     <!-- NUEVA VENTA -->
     <section id="tab-venta" class="tab">
       <h2>Nueva venta</h2>
-      <input id="buscar-venta" type="search" placeholder="Buscar producto por nombre o código…" autocomplete="off">
+      <div class="row">
+        <input id="buscar-venta" type="search" placeholder="Escaneá el código de barras o buscá por nombre…" autocomplete="off">
+        <button id="btn-monto-libre" class="btn" title="Cobrar algo que no está cargado">＋ Monto libre</button>
+      </div>
       <ul id="resultados-venta" class="resultados"></ul>
 
-      <table class="tabla">
-        <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th><th></th></tr></thead>
-        <tbody id="carrito"></tbody>
-      </table>
-      <p id="carrito-vacio" class="muted">Todavía no agregaste productos.</p>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th><th></th></tr></thead>
+          <tbody id="carrito"></tbody>
+        </table>
+      </div>
+      <p id="carrito-vacio" class="muted">Todavía no agregaste productos. Los productos por kilo te piden el peso al agregarlos.</p>
 
       <div class="form-grid">
-        <label>Descuento ($)<input id="venta-descuento" type="number" min="0" step="0.01" value="0"></label>
         <label>Medio de pago
           <select id="venta-pago">
             <option>Efectivo</option>
@@ -84,12 +95,16 @@
             <option>Crédito</option>
             <option>Transferencia</option>
             <option>Mercado Pago</option>
+            <option>Fiado</option>
           </select>
         </label>
+        <label id="box-paga-con">Paga con ($)<input id="venta-paga-con" type="number" min="0" step="0.01" placeholder="Para calcular el vuelto"></label>
+        <label>Descuento ($)<input id="venta-descuento" type="number" min="0" step="0.01" value="0"></label>
         <label>Nota (opcional)<input id="venta-nota" type="text" placeholder="Cliente, detalle…"></label>
       </div>
       <div class="total-box">
         <span>Total</span><strong id="venta-total">$0</strong>
+        <strong id="venta-vuelto" class="vuelto"></strong>
         <small id="venta-ganancia" class="muted"></small>
       </div>
       <div class="row">
@@ -98,20 +113,80 @@
       </div>
     </section>
 
+    <!-- CAJA -->
+    <section id="tab-caja" class="tab">
+      <h2>Caja</h2>
+      <div id="caja-cerrada">
+        <p class="muted">Abrí la caja al empezar el día con la plata que hay para dar cambio. Al cerrar, contás el efectivo y la app te dice si sobra o falta.</p>
+        <form id="form-abrir-caja" class="form-grid">
+          <label>Efectivo inicial (cambio) $<input id="caja-inicial" type="number" min="0" step="0.01" required></label>
+          <button class="btn primario" type="submit">Abrir caja</button>
+        </form>
+      </div>
+
+      <div id="caja-abierta">
+        <p id="caja-desde" class="muted"></p>
+        <div class="cards">
+          <div class="card"><span>Efectivo inicial</span><strong id="cj-inicial"></strong></div>
+          <div class="card"><span>Ventas en efectivo</span><strong id="cj-efectivo"></strong><small id="cj-ventas"></small></div>
+          <div class="card"><span>Ventas otros medios</span><strong id="cj-otros"></strong><small>tarjeta, transferencia, MP, fiado</small></div>
+          <div class="card"><span>Ingresos</span><strong id="cj-ingresos" class="pos"></strong></div>
+          <div class="card"><span>Retiros / pagos</span><strong id="cj-retiros" class="neg"></strong></div>
+          <div class="card destacado"><span>Efectivo que debería haber</span><strong id="cj-esperado"></strong></div>
+        </div>
+
+        <h3>Retiro o ingreso de efectivo</h3>
+        <form id="form-movimiento" class="form-grid">
+          <label>Tipo
+            <select id="mov-tipo">
+              <option value="retiro">Retiro (pago a proveedor, retiro del dueño…)</option>
+              <option value="ingreso">Ingreso (agregar cambio…)</option>
+            </select>
+          </label>
+          <label>Monto $<input id="mov-monto" type="number" min="0" step="0.01" required></label>
+          <label>Motivo<input id="mov-motivo" type="text" placeholder="Ej: pago a distribuidora"></label>
+          <button class="btn" type="submit">Registrar</button>
+        </form>
+        <ul id="lista-movimientos" class="lista"></ul>
+
+        <h3>Cerrar caja</h3>
+        <form id="form-cerrar-caja" class="form-grid">
+          <label>Efectivo contado $<input id="caja-contado" type="number" min="0" step="0.01" required></label>
+          <button class="btn primario" type="submit">Cerrar caja</button>
+        </form>
+      </div>
+
+      <h3>Cierres anteriores</h3>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th>Turno</th><th>Ventas efectivo</th><th>Otros medios</th><th>Esperado</th><th>Contado</th><th>Diferencia</th></tr></thead>
+          <tbody id="tabla-cierres"></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- PRODUCTOS / STOCK -->
     <section id="tab-productos" class="tab">
       <div class="row between">
         <h2>Productos y stock</h2>
-        <button id="btn-nuevo-producto" class="btn primario">+ Nuevo producto</button>
+        <div class="row">
+          <button id="btn-pedido" class="btn">📝 Lista de pedido</button>
+          <button id="btn-aumento" class="btn">📈 Aumentar precios</button>
+          <button id="btn-nuevo-producto" class="btn primario">+ Nuevo producto</button>
+        </div>
       </div>
       <div class="row">
-        <input id="buscar-producto" type="search" placeholder="Buscar…">
+        <input id="buscar-producto" type="search" placeholder="Buscar por nombre, código o proveedor…">
         <select id="filtro-categoria"><option value="">Todas las categorías</option></select>
-        <label class="check"><input id="solo-bajo" type="checkbox"> Solo stock bajo</label>
+        <select id="filtro-estado">
+          <option value="">Todos</option>
+          <option value="bajo">Solo stock bajo</option>
+          <option value="vence">Por vencer / vencidos</option>
+        </select>
       </div>
       <div class="tabla-wrap">
         <table class="tabla">
-          <thead><tr><th>Producto</th><th>Categoría</th><th>Costo</th><th>Precio</th><th>Ganancia s/costo</th><th>Stock</th><th></th></tr></thead>
+          <thead><tr><th>Producto</th><th>Categoría</th><th>Costo</th><th>Precio</th><th>Ganancia s/costo</th><th>Stock</th><th>Vence</th><th></th></tr></thead>
           <tbody id="tabla-productos"></tbody>
         </table>
       </div>
@@ -143,6 +218,7 @@
         </label>
         <label>Descripción<input id="gasto-desc" type="text"></label>
         <label>Monto ($)<input id="gasto-monto" type="number" min="0" step="0.01" required></label>
+        <label class="check"><input id="gasto-caja" type="checkbox"> Lo pagué con el efectivo de la caja</label>
         <button class="btn primario" type="submit">Agregar gasto</button>
       </form>
       <div class="row between">
@@ -163,8 +239,9 @@
     <section id="tab-ajustes" class="tab">
       <h2>Ajustes</h2>
       <form id="form-ajustes" class="form-grid">
-        <label>Nombre del negocio<input id="aj-nombre" type="text" placeholder="Ej: Estudio Imagen"></label>
-        <label>Margen de ganancia sugerido (%)<input id="aj-margen" type="number" min="0" step="1"></label>
+        <label>Nombre del negocio<input id="aj-nombre" type="text" placeholder="Ej: Minisuper Arthur"></label>
+        <label>% de ganancia por defecto<input id="aj-margen" type="number" min="0" step="1"></label>
+        <label>Avisar vencimientos con (días de anticipación)<input id="aj-dias-venc" type="number" min="0" step="1"></label>
         <button class="btn primario" type="submit">Guardar</button>
       </form>
 
@@ -189,14 +266,22 @@
   <dialog id="modal-producto">
     <form id="form-producto" method="dialog" class="form-grid">
       <h3 id="modal-producto-titulo">Producto</h3>
-      <label>Nombre<input id="p-nombre" required></label>
-      <label>Código / SKU<input id="p-codigo"></label>
+      <label>Nombre<input id="p-nombre" required placeholder="Ej: Leche entera 1L"></label>
+      <label>Código de barras<input id="p-codigo" inputmode="numeric"></label>
       <label>Categoría<input id="p-categoria" list="categorias-producto"><datalist id="categorias-producto"></datalist></label>
-      <label>Costo ($)<input id="p-costo" type="number" min="0" step="0.01" required></label>
-      <label>Ganancia sobre costo (%)<input id="p-margen" type="number" step="0.1"></label>
-      <label>Precio de venta ($)<input id="p-precio" type="number" min="0" step="0.01" required></label>
-      <label>Stock actual<input id="p-stock" type="number" step="1" value="0"></label>
-      <label>Stock mínimo (alerta)<input id="p-minimo" type="number" min="0" step="1" value="2"></label>
+      <label>Proveedor<input id="p-proveedor" list="proveedores-lista"><datalist id="proveedores-lista"></datalist></label>
+      <label>Se vende
+        <select id="p-unidad">
+          <option value="u">Por unidad</option>
+          <option value="kg">Por kilo (fiambre, verdura, suelto…)</option>
+        </select>
+      </label>
+      <label>Vencimiento (opcional)<input id="p-vencimiento" type="date"></label>
+      <label>Costo $ <span class="por-unidad">por unidad</span><input id="p-costo" type="number" min="0" step="0.01" required></label>
+      <label>% de ganancia<input id="p-margen" type="number" step="0.1"></label>
+      <label>Precio de venta $ <span class="por-unidad">por unidad</span><input id="p-precio" type="number" min="0" step="0.01" required></label>
+      <label>Stock actual <span class="en-unidad">(unidades)</span><input id="p-stock" type="number" step="1" value="0"></label>
+      <label>Stock mínimo (alerta) <span class="en-unidad">(unidades)</span><input id="p-minimo" type="number" min="0" step="1" value="3"></label>
       <div class="row">
         <button class="btn primario" value="ok">Guardar</button>
         <button class="btn" value="cancel" formnovalidate>Cancelar</button>
@@ -211,9 +296,49 @@
       <p id="stock-producto-nombre" class="muted"></p>
       <label>Cantidad que entra<input id="s-cantidad" type="number" step="1" required></label>
       <label>Costo unitario nuevo ($)<input id="s-costo" type="number" min="0" step="0.01"></label>
+      <label>Vencimiento de este lote<input id="s-vencimiento" type="date"></label>
       <label class="check"><input id="s-gasto" type="checkbox"> Registrar como gasto (compra de mercadería)</label>
+      <label class="check"><input id="s-caja" type="checkbox"> Lo pagué con el efectivo de la caja</label>
       <div class="row">
         <button class="btn primario" value="ok">Confirmar</button>
+        <button class="btn" value="cancel" formnovalidate>Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL LISTA DE PEDIDO -->
+  <dialog id="modal-pedido">
+    <form method="dialog" class="form-grid">
+      <h3>Lista de pedido</h3>
+      <p class="muted">Productos con stock bajo, agrupados por proveedor. Podés editar el texto antes de mandarlo.</p>
+      <textarea id="pedido-texto" rows="14"></textarea>
+      <div class="row">
+        <button type="button" id="btn-copiar-pedido" class="btn">📋 Copiar</button>
+        <button type="button" id="btn-whatsapp-pedido" class="btn">💬 Enviar por WhatsApp</button>
+        <button class="btn" value="cancel">Cerrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL AUMENTO DE PRECIOS -->
+  <dialog id="modal-aumento">
+    <form method="dialog" class="form-grid">
+      <h3>Aumentar precios</h3>
+      <label>Aplicar a<select id="au-aplicar"></select></label>
+      <label>Porcentaje (%)<input id="au-porcentaje" type="number" step="0.1" required placeholder="Ej: 8 (o -5 para bajar)"></label>
+      <label>Redondear precio hacia arriba
+        <select id="au-redondeo">
+          <option value="0">Sin redondeo</option>
+          <option value="1">a $1</option>
+          <option value="10" selected>a $10</option>
+          <option value="50">a $50</option>
+          <option value="100">a $100</option>
+        </select>
+      </label>
+      <label class="check"><input id="au-costo" type="checkbox" checked> Aumentar también el costo (el proveedor subió la lista)</label>
+      <p id="au-preview" class="muted"></p>
+      <div class="row">
+        <button class="btn primario" value="ok">Aplicar</button>
         <button class="btn" value="cancel" formnovalidate>Cancelar</button>
       </div>
     </form>
