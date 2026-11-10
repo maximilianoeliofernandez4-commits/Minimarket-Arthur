@@ -20,6 +20,7 @@
     <button data-tab="caja">💵 Caja <span id="tab-caja-estado"></span></button>
     <button data-tab="productos">📦 Stock</button>
     <button data-tab="ventas">🧾 Ventas</button>
+    <button data-tab="fiados">👥 Fiados</button>
     <button data-tab="gastos">💸 Gastos</button>
     <button data-tab="ajustes">⚙️ Ajustes</button>
   </nav>
@@ -45,6 +46,7 @@
         <div class="card"><span>Gastos</span><strong id="r-gastos">$0</strong></div>
         <div class="card destacado"><span>Ganancia neta</span><strong id="r-neta">$0</strong></div>
         <div class="card"><span>Mercadería en stock (a costo)</span><strong id="r-stock">$0</strong></div>
+        <div class="card"><span>Te deben (fiados)</span><strong id="r-fiado">$0</strong><small id="r-fiado-cant"></small></div>
       </div>
 
       <h3>Ventas por día</h3>
@@ -98,6 +100,13 @@
             <option>Fiado</option>
           </select>
         </label>
+        <label id="box-cliente">Cliente (cuenta corriente)
+          <span class="row sin-margen">
+            <select id="venta-cliente"></select>
+            <button type="button" id="btn-cliente-rapido" class="btn mini" title="Nuevo cliente">＋</button>
+          </span>
+          <small id="venta-cliente-saldo" class="muted"></small>
+        </label>
         <label id="box-paga-con">Paga con ($)<input id="venta-paga-con" type="number" min="0" step="0.01" placeholder="Para calcular el vuelto"></label>
         <label>Descuento ($)<input id="venta-descuento" type="number" min="0" step="0.01" value="0"></label>
         <label>Nota (opcional)<input id="venta-nota" type="text" placeholder="Cliente, detalle…"></label>
@@ -108,9 +117,10 @@
         <small id="venta-ganancia" class="muted"></small>
       </div>
       <div class="row">
-        <button id="btn-cobrar" class="btn primario grande">Cobrar venta</button>
-        <button id="btn-vaciar" class="btn">Vaciar</button>
+        <button id="btn-cobrar" class="btn primario grande">Cobrar venta <kbd>F9</kbd></button>
+        <button id="btn-vaciar" class="btn">Vaciar <kbd>Esc</kbd></button>
       </div>
+      <p class="muted atajos">Atajos: <kbd>F2</kbd> buscar producto · <kbd>F4</kbd> monto libre · <kbd>F7</kbd> efectivo · <kbd>F8</kbd> fiado · <kbd>F9</kbd> cobrar · <kbd>Esc</kbd> vaciar</p>
     </section>
 
     <!-- CAJA -->
@@ -207,6 +217,78 @@
       <ul id="lista-ventas" class="lista ventas"></ul>
     </section>
 
+    <!-- FIADOS / CUENTAS CORRIENTES -->
+    <section id="tab-fiados" class="tab">
+      <div class="row between">
+        <h2>Cuentas corrientes (fiados)</h2>
+        <button id="btn-nuevo-cliente" class="btn primario">+ Nuevo cliente</button>
+      </div>
+      <div class="cards chicas">
+        <div class="card destacado"><span>Total que te deben</span><strong id="cc-total">$0</strong></div>
+        <div class="card"><span>Clientes con deuda</span><strong id="cc-deudores">0</strong></div>
+        <div class="card"><span>Cobrado este mes</span><strong id="cc-cobrado-mes">$0</strong></div>
+      </div>
+      <div class="split">
+        <div>
+          <div class="row">
+            <input id="buscar-cliente" type="search" placeholder="Buscar cliente…">
+            <label class="check"><input id="solo-deudores" type="checkbox" checked> Solo con deuda</label>
+          </div>
+          <div class="tabla-wrap">
+            <table class="tabla clicable">
+              <thead><tr><th>Cliente</th><th>Saldo</th><th>Último mov.</th></tr></thead>
+              <tbody id="tabla-clientes"></tbody>
+            </table>
+          </div>
+          <p id="clientes-vacio" class="muted">No hay clientes para mostrar.</p>
+        </div>
+
+        <div id="cliente-detalle" class="panel">
+          <p class="muted" id="cliente-sin-seleccion">Elegí un cliente de la lista para ver su cuenta.</p>
+          <div id="cliente-con-seleccion">
+            <div class="row between">
+              <div>
+                <h3 id="cd-nombre" class="sin-margen"></h3>
+                <small id="cd-datos" class="muted"></small>
+              </div>
+              <div class="row sin-margen">
+                <button id="btn-cd-whatsapp" class="btn mini" title="Mandar recordatorio de saldo">💬 Recordatorio</button>
+                <button id="btn-cd-editar" class="btn mini">✏️ Editar</button>
+                <button id="btn-cd-borrar" class="btn mini">🗑️</button>
+              </div>
+            </div>
+            <div class="total-box">
+              <span>Saldo</span><strong id="cd-saldo"></strong>
+              <small id="cd-limite" class="muted"></small>
+            </div>
+            <form id="form-pago-cliente" class="form-grid">
+              <label>Entrega / pago $<input id="pc-monto" type="number" min="0" step="0.01" required></label>
+              <label>Medio
+                <select id="pc-medio">
+                  <option>Efectivo</option>
+                  <option>Transferencia</option>
+                  <option>Mercado Pago</option>
+                  <option>Débito</option>
+                </select>
+              </label>
+              <label>Nota<input id="pc-nota" type="text"></label>
+              <div class="row">
+                <button class="btn primario" type="submit">Registrar pago</button>
+                <button class="btn" type="button" id="btn-pc-total">Paga todo</button>
+                <button class="btn" type="button" id="btn-cd-cargo" title="Cargar una deuda sin pasar por Vender (ej: saldo anterior)">＋ Cargar deuda manual</button>
+              </div>
+            </form>
+            <div class="tabla-wrap">
+              <table class="tabla">
+                <thead><tr><th>Fecha</th><th>Detalle</th><th>Compra</th><th>Pago</th><th>Saldo</th><th></th></tr></thead>
+                <tbody id="tabla-mov-cliente"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- GASTOS -->
     <section id="tab-gastos" class="tab">
       <h2>Gastos</h2>
@@ -256,6 +338,8 @@
         <button class="btn" data-csv="productos">Productos</button>
         <button class="btn" data-csv="ventas">Ventas</button>
         <button class="btn" data-csv="gastos">Gastos</button>
+        <button class="btn" data-csv="clientes">Clientes y saldos</button>
+        <button class="btn" data-csv="ctacte">Movimientos de fiados</button>
       </div>
       <h3>Zona peligrosa</h3>
       <button id="btn-borrar-todo" class="btn peligro">Borrar todos los datos</button>
@@ -316,6 +400,21 @@
         <button type="button" id="btn-copiar-pedido" class="btn">📋 Copiar</button>
         <button type="button" id="btn-whatsapp-pedido" class="btn">💬 Enviar por WhatsApp</button>
         <button class="btn" value="cancel">Cerrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL CLIENTE -->
+  <dialog id="modal-cliente">
+    <form method="dialog" class="form-grid">
+      <h3 id="modal-cliente-titulo">Cliente</h3>
+      <label>Nombre<input id="c-nombre" required placeholder="Ej: Marta (la del 3°B)"></label>
+      <label>Teléfono / WhatsApp<input id="c-telefono" type="tel" placeholder="Ej: 11 2345-6789"></label>
+      <label>Límite de fiado $ (0 = sin límite)<input id="c-limite" type="number" min="0" step="0.01" value="0"></label>
+      <label>Notas<input id="c-notas" type="text" placeholder="Dirección, cuándo cobra, etc."></label>
+      <div class="row">
+        <button class="btn primario" value="ok">Guardar</button>
+        <button class="btn" value="cancel" formnovalidate>Cancelar</button>
       </div>
     </form>
   </dialog>

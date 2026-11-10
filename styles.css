@@ -159,3 +159,19 @@ textarea {
 .vuelto { font-size: 1.3rem; color: var(--ok); }
 .vuelto.neg { color: var(--bad); }
 #tab-caja .cards { margin-bottom: 8px; }
+
+/* Fiados */
+.split { display: grid; grid-template-columns: minmax(320px, 1fr) 1.4fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.tabla.clicable tbody tr { cursor: pointer; }
+.tabla.clicable tbody tr:hover td { background: var(--bg); }
+.tabla tr.seleccionado td { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.sin-margen { margin: 0; }
+#box-cliente .row select { flex: 1; }
+kbd {
+  font: .75rem ui-monospace, monospace; padding: 1px 5px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+}
+.btn.primario kbd { background: transparent; color: inherit; border-color: rgba(255,255,255,.5); }
+.atajos { font-size: .85rem; }

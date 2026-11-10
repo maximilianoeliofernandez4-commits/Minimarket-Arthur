@@ -9,6 +9,7 @@ const estadoInicial = () => ({
   ventas: [],
   gastos: [],
   cajas: [],
+  clientes: [], // {id, nombre, telefono, limite, notas, movimientos: [{id, fecha, tipo:'compra'|'pago', monto, detalle, ventaId?, medio?}]}
 });
 
 let db = cargar();
@@ -21,6 +22,7 @@ function normalizar(d) {
     p.proveedor = p.proveedor || '';
     p.vencimiento = p.vencimiento || '';
   });
+  x.clientes.forEach((c) => { c.movimientos = c.movimientos || []; c.limite = c.limite || 0; });
   return x;
 }
 
@@ -135,6 +137,9 @@ function renderResumen() {
   rn.textContent = $m(neta);
   rn.className = neta >= 0 ? 'pos' : 'neg';
   $('#r-stock').textContent = $m(valorStock);
+  const deudores = db.clientes.filter((c) => saldoCliente(c) > 0.009);
+  $('#r-fiado').textContent = $m(deudores.reduce((a, c) => a + saldoCliente(c), 0));
+  $('#r-fiado-cant').textContent = deudores.length ? `${deudores.length} cliente${deudores.length === 1 ? '' : 's'}` : '';
 
   // Gráfico de ventas por día
   const dias = [];
@@ -293,6 +298,7 @@ function renderCarrito() {
   $('#venta-ganancia').textContent = carrito.length ? `Ganancia estimada: ${$m(t.total - t.costo)}` : '';
   const efectivo = $('#venta-pago').value === 'Efectivo';
   $('#box-paga-con').style.display = efectivo ? '' : 'none';
+  renderClienteVenta();
   const pagaCon = num($('#venta-paga-con').value);
   const vuelto = pagaCon - t.total;
   $('#venta-vuelto').textContent = efectivo && pagaCon > 0
@@ -333,9 +339,25 @@ $('#btn-cobrar').addEventListener('click', () => {
   const pagaCon = num($('#venta-paga-con').value);
   if (pago === 'Efectivo' && pagaCon > 0 && pagaCon < t.total &&
       !confirm(`El cliente paga ${$m(pagaCon)} y el total es ${$m(t.total)}. ¿Registrar igual?`)) return;
+  let cliente = null;
+  if (pago === 'Fiado') {
+    cliente = clientePorId($('#venta-cliente').value);
+    if (!cliente) return toast('⚠️ Elegí a qué cliente se le fía (o creá uno con ＋)');
+    const nuevoSaldo = saldoCliente(cliente) + t.total;
+    if (cliente.limite > 0 && nuevoSaldo > cliente.limite &&
+        !confirm(`${cliente.nombre} pasaría a deber ${$m(nuevoSaldo)} y su límite es ${$m(cliente.limite)}. ¿Fiar igual?`)) return;
+  }
   carrito.forEach((i) => { const p = porId(i.productoId); if (p) p.stock = r3(p.stock - i.cantidad); });
+  const ventaId = uid();
+  if (cliente) {
+    cliente.movimientos.push({
+      id: uid(), fecha: new Date().toISOString(), tipo: 'compra', monto: t.total, ventaId,
+      detalle: carrito.map((i) => `${fmtCant(i.cantidad, i.unidad)} ${i.nombre}`).join(', '),
+    });
+  }
   db.ventas.push({
-    id: uid(),
+    id: ventaId,
+    clienteId: cliente ? cliente.id : null,
     fecha: new Date().toISOString(),
     items: carrito.map((i) => ({ ...i })),
     descuento: t.desc,
@@ -346,8 +368,11 @@ $('#btn-cobrar').addEventListener('click', () => {
   });
   guardar();
   const vuelto = pago === 'Efectivo' && pagaCon > t.total ? ` · Vuelto ${$m(pagaCon - t.total)}` : '';
+  const fiado = cliente ? ` · ${cliente.nombre} ahora debe ${$m(saldoCliente(cliente))}` : '';
   limpiarVenta();
-  toast(`✅ Venta registrada: ${$m(t.total)}${vuelto}`);
+  $('#venta-pago').value = 'Efectivo';
+  renderCarrito();
+  toast(`✅ Venta registrada: ${$m(t.total)}${vuelto}${fiado}`);
   if (!cajaAbierta()) setTimeout(() => toast('💡 Tip: abrí la caja en la pestaña "Caja" para controlar el efectivo'), 3200);
 });
 
@@ -674,7 +699,7 @@ function renderVentas() {
   $('#lista-ventas').innerHTML = ventas.length ? ventas.map((v) => `
     <li>
       <div class="venta-cab">
-        <span>🕒 ${hora(v.fecha)} · ${esc(v.pago)}${v.nota ? ' · ' + esc(v.nota) : ''}</span>
+        <span>🕒 ${hora(v.fecha)} · ${esc(v.pago)}${v.clienteId ? ' a ' + esc(clientePorId(v.clienteId)?.nombre || '(cliente eliminado)') : ''}${v.nota ? ' · ' + esc(v.nota) : ''}</span>
         <span><strong>${$m(v.total)}</strong> <button class="btn mini" data-anular="${v.id}" title="Anular venta">Anular</button></span>
       </div>
       <div class="venta-items">${v.items.map((i) => `${fmtCant(i.cantidad, i.unidad || 'u')} ${esc(i.nombre)} (${$m(i.precio)})`).join(' · ')}${v.descuento ? ` · Descuento ${$m(v.descuento)}` : ''}</div>
@@ -687,9 +712,199 @@ $('#lista-ventas').addEventListener('click', (e) => {
   const v = db.ventas.find((x) => x.id === b.dataset.anular);
   if (!confirm(`¿Anular la venta de ${$m(v.total)}? El stock se devuelve.`)) return;
   v.items.forEach((i) => { const p = porId(i.productoId); if (p) p.stock = r3(p.stock + i.cantidad); });
+  db.clientes.forEach((c) => { c.movimientos = c.movimientos.filter((m) => m.ventaId !== v.id); });
   db.ventas = db.ventas.filter((x) => x.id !== v.id);
   guardar(); render();
   toast('Venta anulada');
+});
+
+// ================== FIADOS / CUENTAS CORRIENTES ==================
+const clientePorId = (id) => db.clientes.find((c) => c.id === id);
+const saldoCliente = (c) => r3(c.movimientos.reduce((a, m) => a + (m.tipo === 'compra' ? m.monto : -m.monto), 0));
+const hace = (k) => { const d = -diasHasta(k); return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`; };
+const ultimoMov = (c) => c.movimientos.reduce((a, m) => (m.fecha > a ? m.fecha : a), '');
+let clienteSel = null;
+let editandoClienteId = null;
+let clienteDesdeVenta = false;
+
+function renderClienteVenta() {
+  const fiado = $('#venta-pago').value === 'Fiado';
+  $('#box-cliente').style.display = fiado ? '' : 'none';
+  if (!fiado) return;
+  const sel = $('#venta-cliente');
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">— Elegí un cliente —</option>' +
+    db.clientes.slice().sort((a, b) => a.nombre.localeCompare(b.nombre))
+      .map((c) => `<option value="${c.id}" ${c.id === actual ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
+  const c = clientePorId(sel.value);
+  $('#venta-cliente-saldo').textContent = c
+    ? `Debe hoy: ${$m(saldoCliente(c))}${c.limite ? ` · Límite: ${$m(c.limite)}` : ''}` : '';
+}
+$('#venta-cliente').addEventListener('change', renderClienteVenta);
+
+function abrirCliente(c, desdeVenta = false) {
+  editandoClienteId = c ? c.id : null;
+  clienteDesdeVenta = desdeVenta;
+  $('#modal-cliente-titulo').textContent = c ? 'Editar cliente' : 'Nuevo cliente';
+  $('#c-nombre').value = c ? c.nombre : '';
+  $('#c-telefono').value = c ? c.telefono || '' : '';
+  $('#c-limite').value = c ? c.limite || 0 : 0;
+  $('#c-notas').value = c ? c.notas || '' : '';
+  abrirModal('#modal-cliente');
+  $('#c-nombre').focus();
+}
+$('#btn-nuevo-cliente').addEventListener('click', () => abrirCliente(null));
+$('#btn-cliente-rapido').addEventListener('click', () => abrirCliente(null, true));
+
+$('#modal-cliente').addEventListener('close', () => {
+  if ($('#modal-cliente').returnValue !== 'ok') return;
+  const datos = {
+    nombre: $('#c-nombre').value.trim(),
+    telefono: $('#c-telefono').value.trim(),
+    limite: num($('#c-limite').value),
+    notas: $('#c-notas').value.trim(),
+  };
+  if (!datos.nombre) return;
+  let c;
+  if (editandoClienteId) c = Object.assign(clientePorId(editandoClienteId), datos);
+  else {
+    if (db.clientes.some((x) => x.nombre.toLowerCase() === datos.nombre.toLowerCase())) toast('⚠️ Ojo: ya hay un cliente con ese nombre');
+    c = { id: uid(), ...datos, movimientos: [] };
+    db.clientes.push(c);
+  }
+  clienteSel = c.id;
+  guardar(); render();
+  if (clienteDesdeVenta) { $('#venta-cliente').value = c.id; renderClienteVenta(); }
+  toast('Cliente guardado');
+});
+
+function renderFiados() {
+  const conDeuda = db.clientes.filter((c) => saldoCliente(c) > 0.009);
+  $('#cc-total').textContent = $m(conDeuda.reduce((a, c) => a + saldoCliente(c), 0));
+  $('#cc-deudores').textContent = conDeuda.length;
+  const mes = mesKey();
+  $('#cc-cobrado-mes').textContent = $m(db.clientes.reduce((a, c) =>
+    a + c.movimientos.filter((m) => m.tipo === 'pago' && mesKey(m.fecha) === mes).reduce((s, m) => s + m.monto, 0), 0));
+
+  const q = $('#buscar-cliente').value.trim().toLowerCase();
+  const soloDeuda = $('#solo-deudores').checked;
+  const lista = db.clientes
+    .filter((c) => !q || c.nombre.toLowerCase().includes(q) || (c.telefono || '').includes(q))
+    .filter((c) => !soloDeuda || saldoCliente(c) > 0.009 || c.id === clienteSel)
+    .sort((a, b) => saldoCliente(b) - saldoCliente(a) || a.nombre.localeCompare(b.nombre));
+  $('#tabla-clientes').innerHTML = lista.map((c) => {
+    const s = saldoCliente(c);
+    const um = ultimoMov(c);
+    const excedido = c.limite > 0 && s > c.limite;
+    return `<tr data-cliente="${c.id}" class="${c.id === clienteSel ? 'seleccionado' : ''}">
+      <td><strong>${esc(c.nombre)}</strong>${c.telefono ? `<br><small class="muted">${esc(c.telefono)}</small>` : ''}</td>
+      <td class="${s > 0.009 ? 'neg' : s < -0.009 ? 'pos' : ''}"><strong>${$m(s)}</strong>${excedido ? '<br><small>⚠️ pasó el límite</small>' : ''}</td>
+      <td>${um ? `${fechaLarga(diaKey(um))}<br><small class="muted">${hace(diaKey(um))}</small>` : '—'}</td>
+    </tr>`;
+  }).join('');
+  $('#clientes-vacio').style.display = lista.length ? 'none' : '';
+
+  const c = clientePorId(clienteSel);
+  $('#cliente-sin-seleccion').style.display = c ? 'none' : '';
+  $('#cliente-con-seleccion').style.display = c ? '' : 'none';
+  if (!c) return;
+  const s = saldoCliente(c);
+  $('#cd-nombre').textContent = c.nombre;
+  $('#cd-datos').textContent = [c.telefono, c.notas].filter(Boolean).join(' · ');
+  $('#cd-saldo').textContent = s < -0.009 ? `${$m(-s)} a favor` : $m(s);
+  $('#cd-saldo').className = s > 0.009 ? 'neg' : 'pos';
+  $('#cd-limite').textContent = c.limite ? `Límite: ${$m(c.limite)}` : 'Sin límite';
+
+  let acum = 0;
+  const filas = c.movimientos.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((m) => {
+    acum += m.tipo === 'compra' ? m.monto : -m.monto;
+    return `<tr>
+      <td>${fechaLarga(diaKey(m.fecha))} ${hora(m.fecha)}</td>
+      <td>${m.tipo === 'pago' ? `Pago (${esc(m.medio || '')})` : ''}${m.detalle ? (m.tipo === 'pago' ? ' · ' : '') + esc(m.detalle) : ''}</td>
+      <td>${m.tipo === 'compra' ? $m(m.monto) : ''}</td>
+      <td class="pos">${m.tipo === 'pago' ? $m(m.monto) : ''}</td>
+      <td><strong>${$m(acum)}</strong></td>
+      <td>${m.ventaId ? '<small class="muted" title="Para borrarlo, anulá la venta en la pestaña Ventas">venta</small>' : `<button class="btn mini" data-borrar-mov="${m.id}">🗑️</button>`}</td>
+    </tr>`;
+  });
+  $('#tabla-mov-cliente').innerHTML = filas.reverse().join('') || '<tr><td colspan="6" class="muted">Sin movimientos</td></tr>';
+}
+
+['#buscar-cliente', '#solo-deudores'].forEach((s) => $(s).addEventListener('input', renderFiados));
+$('#tabla-clientes').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-cliente]');
+  if (!tr) return;
+  clienteSel = tr.dataset.cliente;
+  renderFiados();
+  $('#pc-monto').focus();
+});
+
+$('#form-pago-cliente').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const c = clientePorId(clienteSel);
+  const monto = num($('#pc-monto').value);
+  if (!c || monto <= 0) return;
+  const medio = $('#pc-medio').value;
+  const nota = $('#pc-nota').value.trim();
+  const mov = { id: uid(), fecha: new Date().toISOString(), tipo: 'pago', monto, medio, detalle: nota };
+  c.movimientos.push(mov);
+  if (medio === 'Efectivo') {
+    const caja = cajaAbierta();
+    if (caja) caja.movimientos.push({ id: uid(), fecha: mov.fecha, tipo: 'ingreso', monto, motivo: `Cobro fiado: ${c.nombre}`, pagoClienteId: mov.id });
+    else toast('⚠️ No hay caja abierta: el pago se registró pero no se sumó a la caja');
+  }
+  $('#pc-monto').value = '';
+  $('#pc-nota').value = '';
+  guardar(); render();
+  const s = saldoCliente(c);
+  toast(`Pago registrado. ${c.nombre} ${s > 0.009 ? 'debe ' + $m(s) : s < -0.009 ? 'tiene ' + $m(-s) + ' a favor' : 'no debe nada ✔'}`);
+});
+
+$('#btn-pc-total').addEventListener('click', () => {
+  const c = clientePorId(clienteSel);
+  if (c && saldoCliente(c) > 0) $('#pc-monto').value = saldoCliente(c);
+});
+
+$('#btn-cd-cargo').addEventListener('click', () => {
+  const c = clientePorId(clienteSel);
+  if (!c) return;
+  const monto = num(prompt(`¿Cuánto le cargás a la cuenta de ${c.nombre}? ($)`));
+  if (monto <= 0) return;
+  const detalle = (prompt('Detalle', 'Saldo anterior') || '').trim();
+  c.movimientos.push({ id: uid(), fecha: new Date().toISOString(), tipo: 'compra', monto, detalle });
+  guardar(); render();
+});
+
+$('#tabla-mov-cliente').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-borrar-mov]');
+  const c = clientePorId(clienteSel);
+  if (!b || !c || !confirm('¿Eliminar este movimiento?')) return;
+  const id = b.dataset.borrarMov;
+  c.movimientos = c.movimientos.filter((m) => m.id !== id);
+  const caja = cajaAbierta();
+  if (caja) caja.movimientos = caja.movimientos.filter((m) => m.pagoClienteId !== id);
+  guardar(); render();
+});
+
+$('#btn-cd-editar').addEventListener('click', () => abrirCliente(clientePorId(clienteSel)));
+$('#btn-cd-borrar').addEventListener('click', () => {
+  const c = clientePorId(clienteSel);
+  if (!c) return;
+  const s = saldoCliente(c);
+  if (Math.abs(s) > 0.009) return toast(`⚠️ ${c.nombre} tiene saldo de ${$m(s)}. Saldalo antes de eliminarlo.`);
+  if (!confirm(`¿Eliminar a ${c.nombre}?`)) return;
+  db.clientes = db.clientes.filter((x) => x.id !== c.id);
+  clienteSel = null;
+  guardar(); render();
+});
+
+$('#btn-cd-whatsapp').addEventListener('click', () => {
+  const c = clientePorId(clienteSel);
+  if (!c) return;
+  const texto = `Hola ${c.nombre}! Te escribo de ${db.config.nombre}. Te recuerdo que tenés un saldo pendiente de ${$m(saldoCliente(c))}. ¡Gracias!`;
+  let tel = (c.telefono || '').replace(/\D/g, '');
+  if (tel && !tel.startsWith('54')) tel = '549' + tel.replace(/^0/, '').replace(/^(\d{2,4})15/, '$1');
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank');
 });
 
 // ================== GASTOS ==================
@@ -804,6 +1019,14 @@ $$('[data-csv]').forEach((b) => b.addEventListener('click', () => {
       diaKey(v.fecha), hora(v.fecha), i.nombre, i.cantidad, i.unidad || 'u', i.precio, i.costo, v.pago,
       idx === 0 ? v.descuento : '', idx === 0 ? v.total : '', v.nota,
     ])));
+  } else if (t === 'clientes') {
+    filas = [['Cliente', 'Teléfono', 'Límite', 'Saldo', 'Último movimiento', 'Notas'],
+      ...db.clientes.map((c) => [c.nombre, c.telefono, c.limite, saldoCliente(c), ultimoMov(c) ? diaKey(ultimoMov(c)) : '', c.notas])];
+  } else if (t === 'ctacte') {
+    filas = [['Fecha', 'Hora', 'Cliente', 'Tipo', 'Monto', 'Medio', 'Detalle']];
+    db.clientes.forEach((c) => c.movimientos.forEach((m) => filas.push([
+      diaKey(m.fecha), hora(m.fecha), c.nombre, m.tipo === 'compra' ? 'Compra (fiado)' : 'Pago', m.monto, m.medio || '', m.detalle || '',
+    ])));
   } else {
     filas = [['Fecha', 'Categoría', 'Descripción', 'Monto'], ...db.gastos.map((g) => [g.fecha, g.categoria, g.descripcion, g.monto])];
   }
@@ -811,7 +1034,7 @@ $$('[data-csv]').forEach((b) => b.addEventListener('click', () => {
 }));
 
 $('#btn-borrar-todo').addEventListener('click', () => {
-  if (!confirm('¿Borrar TODOS los productos, ventas, gastos y cajas? Esto no se puede deshacer.')) return;
+  if (!confirm('¿Borrar TODOS los productos, ventas, gastos, cajas y fiados? Esto no se puede deshacer.')) return;
   if (prompt('Escribí BORRAR para confirmar') !== 'BORRAR') return;
   db = estadoInicial();
   guardar(); render();
@@ -831,8 +1054,30 @@ function render() {
   renderCarrito();
   renderCaja();
   renderVentas();
+  renderFiados();
   renderGastos();
 }
+
+// ================== ATAJOS DE TECLADO (PC) ==================
+document.addEventListener('keydown', (e) => {
+  if (document.querySelector('dialog[open]')) return;
+  const enVenta = $('#tab-venta').classList.contains('active');
+  const ir = () => { if (!enVenta) irA('venta'); };
+  switch (e.key) {
+    case 'F2': e.preventDefault(); ir(); $('#buscar-venta').focus(); break;
+    case 'F4': e.preventDefault(); ir(); $('#btn-monto-libre').click(); break;
+    case 'F7': e.preventDefault(); ir(); $('#venta-pago').value = 'Efectivo'; renderCarrito(); $('#venta-paga-con').focus(); break;
+    case 'F8': e.preventDefault(); ir(); $('#venta-pago').value = 'Fiado'; renderCarrito(); $('#venta-cliente').focus(); break;
+    case 'F9': if (enVenta) { e.preventDefault(); $('#btn-cobrar').click(); } break;
+    case 'Escape':
+      if (enVenta && carrito.length && confirm('¿Vaciar la venta actual?')) limpiarVenta();
+      break;
+    case 'Enter':
+      // Enter en "Paga con" cobra directamente
+      if (e.target.id === 'venta-paga-con') { e.preventDefault(); $('#btn-cobrar').click(); }
+      break;
+  }
+});
 
 $('#fecha-hoy').textContent = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
 $('#fecha-ventas').value = diaKey();
