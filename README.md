@@ -11,8 +11,11 @@ Pensada para usar en la **PC del mostrador**:
    (por ejemplo `Documentos\Minisuper`).
 2. Abrí `index.html` con **Chrome o Edge**. Guardala en favoritos o creá un acceso directo en el escritorio.
 3. Usá siempre **el mismo navegador y la misma carpeta**: los datos quedan guardados ahí.
-- **Lector de código de barras:** cualquier lector USB funciona. En "Vender" escaneás y el
-  producto se agrega solo. Si el código no está cargado, te ofrece cargarlo en el momento.
+- **Escanear con la cámara:** botón **📷 Escanear** en *Vender* (sirve también para fiar: escaneás y
+  después elegís "Fiado"), en *Stock* (buscar un producto) y al cargar/editar un producto (completa el código).
+  En *Vender* podés escanear varios productos seguidos. Si un código no está cargado, te ofrece cargarlo
+  y después lo suma a la venta. La primera vez el navegador pide permiso para usar la cámara: tocá **Permitir**.
+- **Lector de código de barras USB/Bluetooth:** también funciona; escaneás en el buscador de *Vender*.
 
 El nombre del negocio se cambia en **⚙️ Ajustes**.
 
