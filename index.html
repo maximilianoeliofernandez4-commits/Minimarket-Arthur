@@ -1732,7 +1732,48 @@ function render() {
 }
 
 // ================== ESCÁNER CON CÁMARA ==================
-const escaner = { stream: null, timer: null, zx: null, onCodigo: null, continuo: false, ultimo: '', ultimoT: 0, track: null };
+const escaner = { stream: null, timer: null, zx: null, onCodigo: null, continuo: false, track: null,
+  lecturas: [], bloqueado: '', bloqueadoVisto: 0 };
+// Para aceptar un código, la cámara tiene que leer el MISMO número varias veces seguidas
+const LECTURAS_NECESARIAS = 5;
+const VENTANA_LECTURAS_MS = 3000;
+const PAUSA_MISMO_CODIGO_MS = 1500; // el mismo producto no se vuelve a sumar hasta que sale de la cámara
+
+// Verifica el dígito de control de EAN-13, EAN-8, UPC-A e ITF-14
+function digitoControlValido(c) {
+  if (!/^\d{8}$|^\d{12,14}$/.test(c)) return false;
+  const d = c.split('').map(Number);
+  const control = d.pop();
+  const suma = d.reverse().reduce((a, x, i) => a + x * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (suma % 10)) % 10 === control;
+}
+
+// Cada foto leída pasa por acá; solo se acepta tras LECTURAS_NECESARIAS lecturas iguales
+function lecturaCamara(codigo, formato) {
+  codigo = String(codigo || '').trim();
+  formato = String(formato || '').toLowerCase();
+  if (!codigo) return;
+  if (/ean|upc_a|upca|itf/.test(formato) && !digitoControlValido(codigo)) return; // número mal leído
+  const ahora = Date.now();
+  if (codigo === escaner.bloqueado && ahora - escaner.bloqueadoVisto < PAUSA_MISMO_CODIGO_MS) {
+    escaner.bloqueadoVisto = ahora;
+    return;
+  }
+  escaner.lecturas = escaner.lecturas.filter((l) => ahora - l.t < VENTANA_LECTURAS_MS);
+  escaner.lecturas.push({ c: codigo, t: ahora });
+  const iguales = escaner.lecturas.filter((l) => l.c === codigo).length;
+  if (iguales < LECTURAS_NECESARIAS) {
+    $('#esc-estado').textContent = `Leyendo ${codigo}… ${iguales}/${LECTURAS_NECESARIAS} (mantené quieto el producto)`;
+    return;
+  }
+  escaner.lecturas = [];
+  escaner.bloqueado = codigo;
+  escaner.bloqueadoVisto = ahora;
+  $('#esc-estado').textContent = escaner.continuo
+    ? `✔ ${codigo} leído. Pasá el próximo producto (para sumar otra unidad igual, sacalo y volvé a pasarlo).`
+    : `✔ ${codigo} leído.`;
+  recibirCodigo(codigo);
+}
 const FORMATOS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'qr_code'];
 
 function beep() {
@@ -1761,7 +1802,8 @@ function errorCamara(e) {
 async function abrirEscaner({ titulo, continuo, onCodigo }) {
   escaner.onCodigo = onCodigo;
   escaner.continuo = continuo;
-  escaner.ultimo = '';
+  escaner.lecturas = [];
+  escaner.bloqueado = '';
   $('#esc-titulo').textContent = titulo;
   $('#esc-leidos').innerHTML = '';
   $('#esc-manual').value = '';
@@ -1789,7 +1831,7 @@ async function abrirEscaner({ titulo, continuo, onCodigo }) {
         try {
           if (video.readyState >= 2) {
             const r = await nativo.detect(video);
-            if (r.length) recibirCodigo(r[0].rawValue);
+            if (r.length) lecturaCamara(r[0].rawValue, r[0].format);
           }
         } catch { /* cuadro sin código */ }
         escaner.timer = setTimeout(loop, 120);
@@ -1798,7 +1840,7 @@ async function abrirEscaner({ titulo, continuo, onCodigo }) {
     } else {
       // Sin "hints": con TRY_HARDER / POSSIBLE_FORMATS la lectura continua de ZXing deja de detectar
       escaner.zx = new ZXing.BrowserMultiFormatReader(undefined, 150);
-      await escaner.zx.decodeFromConstraints(constraints, video, (res) => { if (res) recibirCodigo(res.getText()); });
+      await escaner.zx.decodeFromConstraints(constraints, video, (res) => { if (res) lecturaCamara(res.getText(), ZXing.BarcodeFormat[res.getBarcodeFormat()]); });
       escaner.stream = video.srcObject;
     }
     if (!$('#modal-escaner').open) return detenerEscaner(); // se cerró mientras abría
@@ -1821,10 +1863,6 @@ async function abrirEscaner({ titulo, continuo, onCodigo }) {
 function recibirCodigo(codigo) {
   codigo = String(codigo || '').trim();
   if (!codigo) return;
-  const ahora = Date.now();
-  if (codigo === escaner.ultimo && ahora - escaner.ultimoT < 2000) return; // evita leer dos veces el mismo
-  escaner.ultimo = codigo;
-  escaner.ultimoT = ahora;
   beep();
   if (!escaner.continuo) {
     $('#modal-escaner').close();
@@ -1852,8 +1890,7 @@ $('#esc-manual').addEventListener('keydown', (e) => {
   e.preventDefault();
   const v = e.target.value;
   e.target.value = '';
-  escaner.ultimo = '';
-  recibirCodigo(v);
+  recibirCodigo(v); // escrito a mano: se acepta directo
 });
 
 $('#btn-esc-linterna').addEventListener('click', async () => {
