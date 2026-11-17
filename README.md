@@ -25,6 +25,8 @@ El nombre del negocio se cambia en **⚙️ Ajustes**.
 |---|---|
 | 📊 Resumen | Ventas, ticket promedio, costo, ganancia bruta, gastos y **ganancia neta** por período. Gráfico de ventas por día, stock bajo, **vencimientos**, más vendidos y medios de pago. |
 | 🛒 Vender | Escaneo o búsqueda por nombre. Los productos **por kilo** piden el peso (en kg o gramos). **Monto libre** para cobrar algo no cargado. Medio de pago (incluye Fiado), **cálculo de vuelto**, descuento. Descuenta stock al cobrar. |
+| 🛒 Ventas en espera | En *Vender*, **Nueva venta (F3)** deja la venta actual en espera (si al cliente le faltó algo) y abre otra para atender al siguiente. Cada venta es una pestaña con su total; tocás la pestaña para retomarla. Si se cierra o recarga la página, las ventas abiertas no se pierden. |
+| ⚡ Accesos rápidos | Al cargar un producto marcás **"Mostrar como acceso rápido"** (caramelos, chicles, pan…) y aparece como botón en *Vender*: un toque y se suma a la venta. |
 | 💵 Caja | Apertura con efectivo inicial, retiros/ingresos (pago a proveedores, etc.) y **cierre con arqueo**: te dice si sobra o falta plata. Historial de cierres. |
 | 📦 Stock | Productos con código de barras, categoría, proveedor, unidad o kilo, costo, % de ganancia, precio, stock mínimo y vencimiento. **＋ Stock** para ingresar mercadería. **Lista de pedido** por proveedor (copiar o mandar por WhatsApp). **Aumentar precios** por % a todo, una categoría o un proveedor, con redondeo. |
 | 👥 Fiados | **Cuenta corriente por cliente**: al vender con medio de pago *Fiado* elegís el cliente (o lo creás en el momento) y se le suma a la cuenta. Registrás entregas/pagos (si son en efectivo se suman a la caja), ves el saldo y el historial con saldo acumulado, límite de fiado con aviso, carga de deuda manual (ej: saldo anterior) y recordatorio por WhatsApp. |
@@ -37,6 +39,7 @@ El nombre del negocio se cambia en **⚙️ Ajustes**.
 | Tecla | Acción |
 |---|---|
 | F2 | Ir a vender / buscar producto |
+| F3 | Nueva venta (deja la actual en espera) |
 | F4 | Monto libre |
 | F7 | Pago en efectivo (va al campo "Paga con"; Enter cobra) |
 | F8 | Fiado (elegir cliente) |
