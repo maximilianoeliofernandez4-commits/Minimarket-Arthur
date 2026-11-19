@@ -32,6 +32,7 @@ El nombre del negocio se cambia en **⚙️ Ajustes**.
 | 👥 Fiados | **Cuenta corriente por cliente**: al vender con medio de pago *Fiado* elegís el cliente (o lo creás en el momento) y se le suma a la cuenta. Registrás entregas/pagos (si son en efectivo se suman a la caja), ves el saldo y el historial con saldo acumulado, límite de fiado con aviso, carga de deuda manual (ej: saldo anterior) y recordatorio por WhatsApp. |
 | 🧾 Ventas | Ventas de un día con total, ganancia y detalle. Se pueden anular (devuelve el stock). |
 | 💸 Gastos | Alquiler, luz, sueldos, mercadería, comisiones, etc. Opción de descontarlo del efectivo de la caja. Totales por mes y categoría. |
+| ✨ Asistente IA | Preguntale a tu negocio con **DeepSeek**: pedido sugerido por proveedor, lo que no se vende, dónde ganás más, ofertas para liquidar, resumen del mes, días y horarios, textos de ofertas para WhatsApp/Instagram y ordenar el catálogo. También podés escribir cualquier pregunta. Necesita una clave de API de DeepSeek (platform.deepseek.com, se paga por uso y es muy barata). La clave queda solo en el dispositivo y **nunca se envían nombres ni teléfonos de clientes**. |
 | ⚙️ Ajustes | Nombre, % de ganancia por defecto, días de aviso de vencimiento, copia de seguridad (JSON) y exportación a Excel (CSV). |
 
 ## Atajos de teclado
