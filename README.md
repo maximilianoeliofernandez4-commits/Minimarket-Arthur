@@ -30,6 +30,7 @@ El nombre del negocio se cambia en **⚙️ Ajustes**.
 | 💵 Caja | Apertura con efectivo inicial, retiros/ingresos (pago a proveedores, etc.) y **cierre con arqueo**: te dice si sobra o falta plata. Historial de cierres. |
 | 📦 Stock | Productos con código de barras, categoría, proveedor, unidad o kilo, costo, % de ganancia, precio, stock mínimo y vencimiento. **＋ Stock** para ingresar mercadería. **Lista de pedido** por proveedor (copiar o mandar por WhatsApp). **Aumentar precios** por % a todo, una categoría o un proveedor, con redondeo. |
 | 👥 Fiados | **Cuenta corriente por cliente**: al vender con medio de pago *Fiado* elegís el cliente (o lo creás en el momento) y se le suma a la cuenta. Registrás entregas/pagos (si son en efectivo se suman a la caja), ves el saldo y el historial con saldo acumulado, límite de fiado con aviso, carga de deuda manual (ej: saldo anterior) y recordatorio por WhatsApp. |
+| 💸 Transferencias | Con medio de pago *Transferencia*, la pantalla de venta muestra el monto y tu **alias/CVU** (cargalo en Ajustes) con botón para copiar, y al cobrar te pregunta si ya verificaste que entró. Si todavía no llegó, dejás la venta en espera. |
 | 🧾 Ventas | Ventas de un día con total, ganancia y detalle. Se pueden anular (devuelve el stock). |
 | 💸 Gastos | Alquiler, luz, sueldos, mercadería, comisiones, etc. Opción de descontarlo del efectivo de la caja. Totales por mes y categoría. |
 | ✨ Asistente IA | Preguntale a tu negocio con **DeepSeek**: pedido sugerido por proveedor, lo que no se vende, dónde ganás más, ofertas para liquidar, resumen del mes, días y horarios, textos de ofertas para WhatsApp/Instagram y ordenar el catálogo. También podés escribir cualquier pregunta. Necesita una clave de API de DeepSeek (platform.deepseek.com, se paga por uso y es muy barata). La clave queda solo en el dispositivo y **nunca se envían nombres ni teléfonos de clientes**. |
@@ -57,7 +58,9 @@ usá "Importar copia" para pasarla a otro dispositivo.
 ## Cálculos
 
 - **Ganancia bruta** = ventas − costo de lo vendido (con el costo del momento de la venta).
-- **Ganancia neta** = ganancia bruta − gastos del período.
+- **Comisiones de cobro:** en Ajustes cargás el % total que te descuentan por Débito, Crédito, Mercado Pago y Transferencia.
+  Cada venta guarda su comisión; las ventas anteriores a cargar los % se calculan con el % actual.
+- **Ganancia neta** = ganancia bruta − gastos − comisiones de cobro del período.
 - **% de ganancia** (en productos) = (precio − costo) / costo.
 - **Monto libre:** como no se sabe el costo, se estima con el % de ganancia por defecto.
 - **Caja:** efectivo esperado = inicial + ventas en efectivo + ingresos − retiros.

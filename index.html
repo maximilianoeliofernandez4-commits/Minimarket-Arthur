@@ -286,6 +286,13 @@ kbd {
 .acceso.sin-stock { opacity: .55; }
 .etiqueta { display: inline-block; font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); margin-left: 6px; vertical-align: 1px; }
 
+/* ---------- Transferencia ---------- */
+.transf-box { background: var(--primary-soft); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.transf-box > span { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.transf-box > strong { font-size: 1.4rem; color: var(--primary); }
+.transf-alias { font-size: 1.05rem; overflow-wrap: anywhere; }
+.transf-box small { color: var(--muted); margin-top: 4px; line-height: 1.3; }
+
 /* ---------- Totales (fiados) ---------- */
 .total-box { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; background: var(--panel-2); border-radius: 12px; padding: 14px 16px; margin: 14px 0; }
 .total-box > span { font-weight: 600; color: var(--muted); }
@@ -445,7 +452,8 @@ dialog.escaner { width: min(640px, calc(100vw - 16px)); }
           <div class="stat"><span>Costo de lo vendido</span><strong id="r-costo">$0</strong></div>
           <div class="stat"><span>Ganancia bruta</span><strong id="r-bruta">$0</strong><small id="r-margen"></small></div>
           <div class="stat"><span>Gastos</span><strong id="r-gastos">$0</strong></div>
-          <div class="stat destacado"><span>Ganancia neta</span><strong id="r-neta">$0</strong></div>
+          <div class="stat"><span>Comisiones de cobro</span><strong id="r-comisiones">$0</strong><small>tarjetas y Mercado Pago</small></div>
+          <div class="stat destacado"><span>Ganancia neta</span><strong id="r-neta">$0</strong><small>después de gastos y comisiones</small></div>
           <div class="stat"><span>Mercadería en stock</span><strong id="r-stock">$0</strong><small>valuada a costo</small></div>
           <div class="stat"><span>Te deben (fiados)</span><strong id="r-fiado">$0</strong><small id="r-fiado-cant"></small></div>
         </div>
@@ -536,6 +544,14 @@ dialog.escaner { width: min(640px, calc(100vw - 16px)); }
               </span>
               <small id="venta-cliente-saldo" class="muted"></small>
             </label>
+            <div id="box-transferencia" class="transf-box">
+              <span>Pedile que transfiera</span>
+              <strong id="transf-monto"></strong>
+              <span>al alias / CVU</span>
+              <div class="row sin-margen"><strong id="transf-alias" class="transf-alias"></strong>
+                <button type="button" id="btn-copiar-alias" class="btn mini" title="Copiar alias"><svg class="ic"><use href="#i-copy"/></svg></button></div>
+              <small>Antes de cobrar, fijate en tu app de Mercado Pago que la transferencia haya entrado.</small>
+            </div>
             <label id="box-paga-con">Paga con $<input id="venta-paga-con" type="number" min="0" step="0.01" placeholder="Para calcular el vuelto"></label>
             <strong id="venta-vuelto" class="vuelto"></strong>
             <label>Descuento $<input id="venta-descuento" type="number" min="0" step="0.01" value="0"></label>
@@ -655,7 +671,7 @@ dialog.escaner { width: min(640px, calc(100vw - 16px)); }
         </header>
         <div class="stats">
           <div class="stat"><span>Total del día</span><strong id="dv-total">$0</strong></div>
-          <div class="stat"><span>Ganancia del día</span><strong id="dv-ganancia">$0</strong></div>
+          <div class="stat"><span>Ganancia del día</span><strong id="dv-ganancia">$0</strong><small>descontando comisiones</small></div>
           <div class="stat"><span>Cantidad de ventas</span><strong id="dv-cant">0</strong></div>
         </div>
         <div class="panel">
@@ -831,7 +847,19 @@ dialog.escaner { width: min(640px, calc(100vw - 16px)); }
             <label>Nombre del negocio<input id="aj-nombre" type="text" placeholder="Ej: Minisuper Arthur"></label>
             <label>% de ganancia por defecto<input id="aj-margen" type="number" min="0" step="1"></label>
             <label>Avisar vencimientos con (días)<input id="aj-dias-venc" type="number" min="0" step="1"></label>
+            <label>Alias o CVU para transferencias<input id="aj-alias" type="text" placeholder="Ej: minisuper.arthur.mp"></label>
             <div class="row sin-margen"><button class="btn primario" type="submit">Guardar</button></div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3><svg class="ic"><use href="#i-card"/></svg>Comisiones por medio de pago</h3></div>
+          <p class="muted">Poné el porcentaje <strong>total</strong> que te descuentan por cada cobro (comisión + IVA y otros cargos). Lo ves en el resumen de tu posnet o de Mercado Pago. Se descuenta de la ganancia en el Resumen, en Ventas y en el Asistente.</p>
+          <form id="form-comisiones" class="form-grid">
+            <label>Débito %<input id="com-debito" type="number" min="0" step="0.01" data-medio="Débito"></label>
+            <label>Crédito %<input id="com-credito" type="number" min="0" step="0.01" data-medio="Crédito"></label>
+            <label>Mercado Pago (QR / link) %<input id="com-mp" type="number" min="0" step="0.01" data-medio="Mercado Pago"></label>
+            <label>Transferencia %<input id="com-transf" type="number" min="0" step="0.01" data-medio="Transferencia"></label>
+            <div class="row sin-margen"><button class="btn primario" type="submit">Guardar comisiones</button></div>
           </form>
         </div>
         <div class="grid2">
@@ -996,7 +1024,8 @@ dialog.escaner { width: min(640px, calc(100vw - 16px)); }
 const CLAVE = 'gestion-negocio-v1';
 
 const estadoInicial = () => ({
-  config: { nombre: 'Mi Minisuper', margen: 30, diasVencimiento: 7 },
+  config: { nombre: 'Mi Minisuper', margen: 30, diasVencimiento: 7, alias: '',
+    comisiones: { 'Débito': 0, 'Crédito': 0, 'Mercado Pago': 0, 'Transferencia': 0 } },
   productos: [],
   ventas: [],
   gastos: [],
@@ -1009,6 +1038,7 @@ let db = cargar();
 function normalizar(d) {
   const x = Object.assign(estadoInicial(), d);
   x.config = Object.assign(estadoInicial().config, d.config || {});
+  x.config.comisiones = Object.assign(estadoInicial().config.comisiones, (d.config || {}).comisiones || {});
   x.productos.forEach((p) => {
     p.unidad = p.unidad || 'u';
     p.proveedor = p.proveedor || '';
@@ -1049,6 +1079,11 @@ const fmtCant = (n, u) => (u === 'kg'
   : `${r3(n).toLocaleString('es-AR')} u.`);
 const hora = (iso) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 const ic = (n) => `<svg class="ic"><use href="#i-${n}"/></svg>`;
+// Comisión que te descuentan por cobrar con cada medio (tarjetas, MP…)
+const pctComision = (pago) => num(((db.config && db.config.comisiones) || {})[pago]);
+const comisionDe = (pago, total) => Math.round(total * pctComision(pago)) / 100;
+// Las ventas guardan la comisión del momento; las viejas se calculan con el % actual
+const comisionVenta = (v) => (typeof v.comision === 'number' ? v.comision : comisionDe(v.pago, v.total));
 const porId = (id) => db.productos.find((p) => p.id === id);
 
 // Fecha local en formato AAAA-MM-DD
@@ -1116,7 +1151,8 @@ function renderResumen() {
   const totalCosto = ventas.reduce((a, v) => a + v.costoTotal, 0);
   const bruta = totalVentas - totalCosto;
   const totalGastos = gastos.reduce((a, g) => a + g.monto, 0);
-  const neta = bruta - totalGastos;
+  const totalComisiones = ventas.reduce((a, v) => a + comisionVenta(v), 0);
+  const neta = bruta - totalGastos - totalComisiones;
   const valorStock = db.productos.reduce((a, p) => a + Math.max(p.stock, 0) * p.costo, 0);
 
   $('#r-ventas').textContent = $m(totalVentas);
@@ -1126,6 +1162,7 @@ function renderResumen() {
   $('#r-bruta').textContent = $m(bruta);
   $('#r-margen').textContent = totalVentas ? pct((bruta / totalVentas) * 100) + ' sobre lo vendido' : '';
   $('#r-gastos').textContent = $m(totalGastos);
+  $('#r-comisiones').textContent = $m(totalComisiones);
   const rn = $('#r-neta');
   rn.textContent = $m(neta);
   rn.className = neta >= 0 ? 'pos' : 'neg';
@@ -1181,11 +1218,14 @@ function renderResumen() {
     : '<li class="vacio">Sin ventas en el período</li>';
 
   // Medios de pago
-  const pagos = {};
-  ventas.forEach((v) => { pagos[v.pago] = (pagos[v.pago] || 0) + v.total; });
+  const pagos = {}, comPorMedio = {};
+  ventas.forEach((v) => {
+    pagos[v.pago] = (pagos[v.pago] || 0) + v.total;
+    comPorMedio[v.pago] = (comPorMedio[v.pago] || 0) + comisionVenta(v);
+  });
   const lp = Object.entries(pagos).sort((a, b) => b[1] - a[1]);
   $('#lista-pagos').innerHTML = lp.length
-    ? lp.map(([n, t]) => `<li><span>${esc(n)}</span><strong>${$m(t)}</strong></li>`).join('')
+    ? lp.map(([n, t]) => `<li><span>${esc(n)}${comPorMedio[n] > 0.004 ? `<br><small class="muted">comisión −${$m(comPorMedio[n])}</small>` : ''}</span><strong>${$m(t)}</strong></li>`).join('')
     : '<li class="vacio">Sin ventas en el período</li>';
 }
 $('#periodo').addEventListener('change', renderResumen);
@@ -1395,7 +1435,16 @@ function renderCarrito() {
   $('#carrito-vacio').style.display = carrito.length ? 'none' : '';
   const t = totalesCarrito();
   $('#venta-total').textContent = $m(t.total);
-  $('#venta-ganancia').textContent = carrito.length ? `Ganancia estimada: ${$m(t.total - t.costo)}` : '';
+  const com = comisionDe($('#venta-pago').value, t.total);
+  $('#venta-ganancia').textContent = carrito.length
+    ? `Ganancia estimada: ${$m(t.total - t.costo - com)}${com > 0 ? ` (descontada comisión ${$m(com)})` : ''}` : '';
+  const transf = $('#venta-pago').value === 'Transferencia';
+  $('#box-transferencia').style.display = transf && carrito.length ? '' : 'none';
+  if (transf) {
+    $('#transf-monto').textContent = $m(t.total);
+    $('#transf-alias').textContent = db.config.alias || 'Cargá tu alias en Ajustes';
+    $('#btn-copiar-alias').style.display = db.config.alias ? '' : 'none';
+  }
   const efectivo = $('#venta-pago').value === 'Efectivo';
   $('#box-paga-con').style.display = efectivo ? '' : 'none';
   renderClienteVenta();
@@ -1447,6 +1496,8 @@ $('#btn-cobrar').addEventListener('click', () => {
   if (pago === 'Efectivo' && pagaCon > 0 && pagaCon < t.total &&
       !confirm(`El cliente paga ${$m(pagaCon)} y el total es ${$m(t.total)}. ¿Registrar igual?`)) return;
   let cliente = null;
+  if (pago === 'Transferencia' &&
+      !confirm(`¿Ya verificaste en tu app de Mercado Pago que entró la transferencia de ${$m(t.total)}?\n\nSi todavía no llegó, tocá "Cancelar" y dejá la venta en espera con "Nueva venta" mientras tanto.`)) return;
   if (pago === 'Fiado') {
     cliente = clientePorId($('#venta-cliente').value);
     if (!cliente) return toast('⚠️ Elegí a qué cliente se le fía (o creá uno con ＋)');
@@ -1471,6 +1522,7 @@ $('#btn-cobrar').addEventListener('click', () => {
     total: t.total,
     costoTotal: t.costo,
     pago,
+    comision: comisionDe(pago, t.total),
     nota: $('#venta-nota').value.trim(),
   });
   guardar();
@@ -1813,7 +1865,7 @@ function renderVentas() {
   const f = $('#fecha-ventas').value || diaKey();
   const ventas = db.ventas.filter((v) => diaKey(v.fecha) === f).sort((a, b) => b.fecha.localeCompare(a.fecha));
   const total = ventas.reduce((a, v) => a + v.total, 0);
-  const gan = ventas.reduce((a, v) => a + v.total - v.costoTotal, 0);
+  const gan = ventas.reduce((a, v) => a + v.total - v.costoTotal - comisionVenta(v), 0);
   $('#dv-total').textContent = $m(total);
   $('#dv-ganancia').textContent = $m(gan);
   $('#dv-cant').textContent = ventas.length;
@@ -2091,8 +2143,18 @@ $('#form-ajustes').addEventListener('submit', (e) => {
   db.config.nombre = $('#aj-nombre').value.trim() || 'Mi Minisuper';
   db.config.margen = num($('#aj-margen').value);
   db.config.diasVencimiento = Math.max(0, Math.round(num($('#aj-dias-venc').value)));
+  db.config.alias = $('#aj-alias').value.trim();
   guardar(); render();
   toast('Ajustes guardados');
+});
+$('#form-comisiones').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $$('#form-comisiones input[data-medio]').forEach((inp) => { db.config.comisiones[inp.dataset.medio] = Math.max(0, num(inp.value)); });
+  guardar(); render();
+  toast('Comisiones guardadas. Las ventas nuevas usan estos porcentajes.');
+});
+$('#btn-copiar-alias').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(db.config.alias); toast('Alias copiado'); } catch { prompt('Alias:', db.config.alias); }
 });
 
 function descargar(nombre, contenido, tipo) {
@@ -2172,6 +2234,10 @@ function render() {
   $('#aj-nombre').value = db.config.nombre;
   $('#aj-margen').value = db.config.margen;
   $('#aj-dias-venc').value = db.config.diasVencimiento;
+  $('#aj-alias').value = db.config.alias || '';
+  $$('#form-comisiones input[data-medio]').forEach((inp) => {
+    if (document.activeElement !== inp) inp.value = db.config.comisiones[inp.dataset.medio] || '';
+  });
   $('#tab-caja-estado').className = cajaAbierta() ? 'dot on' : 'dot';
   renderResumen();
   renderProductos();
@@ -2454,7 +2520,8 @@ function contextoNegocio() {
     const gastos = gs.reduce((a, g) => a + g.monto, 0);
     const pagos = {};
     vs.forEach((v) => { pagos[v.pago] = red((pagos[v.pago] || 0) + v.total); });
-    return { desde, hasta, cantVentas: vs.length, ventas: red(ventas), costoVendido: red(costo), gananciaBruta: red(ventas - costo), gastos: red(gastos), gananciaNeta: red(ventas - costo - gastos), gastosPorCategoria: gastosCat, mediosDePago: pagos };
+    const comisiones = vs.reduce((a, v) => a + comisionVenta(v), 0);
+    return { desde, hasta, cantVentas: vs.length, ventas: red(ventas), costoVendido: red(costo), gananciaBruta: red(ventas - costo), gastos: red(gastos), comisionesDeCobro: red(comisiones), gananciaNeta: red(ventas - costo - gastos - comisiones), gastosPorCategoria: gastosCat, mediosDePago: pagos };
   };
   const hoy = new Date();
   const iniMes = mesKey(hoy) + '-01';
@@ -2478,6 +2545,7 @@ function contextoNegocio() {
     negocio: db.config.nombre,
     hoy: diaKey(),
     margenPorDefectoPct: db.config.margen,
+    comisionesPorMedioPct: db.config.comisiones,
     mesActual: resumenMes(iniMes, diaKey()),
     mesAnterior: resumenMes(iniAnt, finAnt),
     ventasPorDiaUlt30: porDia,
